@@ -4,9 +4,9 @@
 $ storm deploy StormCluster [--production]
 ```
 - Uses YAML config file for:
-  - Available cloud providers
   - Number of instances per provider
   - Remote endpoint / domain name
+  - Compose files and container scaling
 - Deploys itself + Management UI and backend
   - Executed only once
   - `--production` is non-reversible / destroys local keys
