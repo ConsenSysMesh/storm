@@ -242,9 +242,10 @@ compose:
   automatic discovery and DNS setup...) is to transfer the certificates
   of launched instances back to the user, populating his
   `~/.docker/machine/machines` folder just like `docker-machine` would,
-  but without the need for each cloud provider credentials and keys,
+  but without the need for each cloud provider's credentials and keys,
   allowing resource management across an organization's or individual's
   cloud providers accounts.
+
   ```
   dockerized instance <-- (cert) docker-machine[storm] (cert) --> local
   ```
