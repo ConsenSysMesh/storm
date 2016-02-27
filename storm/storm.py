@@ -14,7 +14,7 @@ import uuid
 import yaml
 import logging
 from colors import colors
-from fabric.api import lcd, settings
+from fabric.api import settings
 from fabric.contrib.console import confirm
 from tasks import set_logging, machine, machine_list, docker_on, compose_on
 from tasks import launch, deploy_consul, deploy_registrator, prepare_haproxy, deploy_haproxy
@@ -88,8 +88,8 @@ def create_certs():
     # the same file in parallel in preparation steps
     if not os.path.exists(os.path.join(os.path.expanduser("~"), ".docker", "machine", "certs")):
         logging.info("No certificates found, creating them...\n")
-        machine("create -d none --url tcp://127.0.0.1:2376 dummy")
-        machine("rm -y dummy")
+        machine("create -d none --url tcp://127.0.0.1:2376 dummy", threadName="create cert")
+        machine("rm -y dummy", threadName="rm")
         logging.info("Certificates created.\n")
 
 def main():
@@ -167,7 +167,8 @@ def main():
             if AZURE_SUBSCRIPTION_ID and AZURE_CERTIFICATE:
                 machine('create -d azure --azure-subscription-id="%s" --azure-subscription-cert="%s" %s' % (AZURE_SUBSCRIPTION_ID,
                                                                                                             AZURE_CERTIFICATE,
-                                                                                                            args.parameters[1]))
+                                                                                                            args.parameters[1]),
+                        threadName="create %s" % args.parameters[1])
             else:
                 log.warn("Missing Azure credentials, set them in ~/.storm/azure/")
 
@@ -175,14 +176,16 @@ def main():
             if AWS_ACCESS_KEY and AWS_SECRET_KEY:
                 machine('create -d amazonec2 --amazonec2-access-key="%s" --amazonec2-secret-key="%s" %s' % (AWS_ACCESS_KEY,
                                                                                                             AWS_SECRET_KEY,
-                                                                                                            args.parameters[1]))
+                                                                                                            args.parameters[1]),
+                        threadName="create %s" % args.parameters[1])
             else:
                 log.warn("Missing AWS credentials, set them as standard credentials in ~/.aws/credentials")
 
         elif provider == "digitalocean":
             if AWS_ACCESS_KEY and AWS_SECRET_KEY:
                 machine('create -d digitalocean --digitalocean-access-token="%s" %s' % (DIGITALOCEAN_ACCESS_TOKEN,
-                                                                                        args.parameters[1]))
+                                                                                        args.parameters[1]),
+                        threadName="create %s" % args.parameters[1])
             else:
                 log.warn("Missing DigitalOcean token, set it in ~/.storm/digitalocean/token")
 
@@ -243,7 +246,7 @@ def main():
 
         # Launch service discovery instances
         for provider in storm["discovery"]:
-            for index in xrange(0, storm["discovery"][provider]["scale"]):
+            for index in range(storm["discovery"][provider]["scale"]):
                 name = "consul-%s-%d-%s" % (provider, index, str(uuid.uuid4())[:8])
                 instance = storm["discovery"][provider].copy()
                 instance["provider"] = provider
@@ -276,7 +279,7 @@ def main():
         log.info("Launching %scluster%s instances..." % (colors.BLUE, colors.ENDC))
 
         for provider in storm["hosts"]:
-            for index in xrange(0, storm["hosts"][provider]["scale"]):
+            for index in range(storm["hosts"][provider]["scale"]):
                 name = "storm-%s-%d-%s" % (provider, index, str(uuid.uuid4())[:8])
                 instance = storm["hosts"][provider].copy()
                 instance["discovery"] = discovery_host
@@ -336,9 +339,11 @@ def main():
             for service in services:
                 log.info("Deploying %s%s%s..." % (colors.GREEN, service, colors.ENDC))
                 config = services[service]
-                with lcd(os.path.join(os.getcwd(), 'deploy', name)):
-                    compose_on(swarm_master, "up -d", discovery_host, capture=False)
-                    compose_on(swarm_master, "scale %s=%d" % (service, config["scale"]), discovery_host, capture=False)
+                # with lcd(os.path.join(os.getcwd(), 'deploy', name)):
+                compose_on(swarm_master, "up -d", discovery_host,
+                           cwd=os.path.join(os.getcwd(), 'deploy', name))
+                compose_on(swarm_master, "scale %s=%d" % (service, config["scale"]), discovery_host,
+                           cwd=os.path.join(os.getcwd(), 'deploy', name))
 
         # Teardown?
         if confirm("Teardown running instances?", default=False):
@@ -352,26 +357,31 @@ def main():
         inventory = Inventory()
         discovery_host = inventory.discovery[inventory.discovery.keys()[0]]  # FIXME
         master_instance = inventory.instances.keys()[0]  # FIXME too
-        docker_on(master_instance, "ps " + " ".join(args.parameters), discovery_host, capture=False)
+        out = docker_on(master_instance, "ps " + " ".join(args.parameters), discovery_host, threadName="ps swarm %s" % master_instance, capture=True)
+        print out
 
     elif args.command == "env":
         inventory = Inventory()
         if args.parameters[0] == 'swarm':
             instance = inventory.instances.keys()[0]
-            machine("env --shell bash --swarm %s" % instance, capture=False)
+            out = machine("env --shell bash --swarm %s" % instance, threadName="env %s" % instance, capture=True)
+            print out
         elif args.parameters[0] == 'discovery':
             instance = inventory.discovery.keys()[int(args.parameters[1])]
-            machine("env --shell bash %s" % instance, capture=False)
+            out = machine("env --shell bash %s" % instance, threadName="env %s" % instance, capture=True)
+            print out
         else:
-            instance = inventory.instances.keys()[int(args.parameters[1])]
-            machine("env --shell bash %s%s" % ("--swarm " if len(args.parameters) > 1 and args.parameters[0] == "swarm" else "", instance), capture=False)
+            instance = inventory.instances.keys()[int(args.parameters[0])]
+            out = machine("env --shell bash %s" % instance,
+                          threadName="env %s" % instance, capture=True)
+            print out
 
     else:
         if args.command:
             inventory = Inventory()
             discovery_host = inventory.discovery[inventory.discovery.keys()[0]]  # FIXME
             master_instance = inventory.instances.keys()[0]  # FIXME too
-            compose_on(master_instance, args.command + " " + " ".join(args.parameters), discovery_host, capture=False)
+            compose_on(master_instance, args.command + " " + " ".join(args.parameters), discovery_host)
         else:
             log.warn("No docker-compose arguments found to process.")
 

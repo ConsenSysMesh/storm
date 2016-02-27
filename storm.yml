@@ -7,12 +7,12 @@ discovery:
     size: Small
     location: West Europe
   aws:
-    scale: 2
+    scale: 1
     size: t2.nano
     vpc: vpc-c2cb97a7
-  # digitalocean:
-  #   scale: 1
-  #   # size: 512mb
+  digitalocean:
+    scale: 1
+    size: 512mb
 
 hosts:
   azure:
@@ -23,16 +23,16 @@ hosts:
     scale: 1
     size: t2.nano
     vpc: vpc-c2cb97a7
-  # digitalocean:
-  #   scale: 1
-  #   size: 1gb
+  digitalocean:
+    scale: 4
+    size: 512mb
 
 deploy:
   hello:
     services:
       app:
-        scale: 3
+        scale: 5
   geth:
     services:
       geth:
-        scale: 3
+        scale: 5
