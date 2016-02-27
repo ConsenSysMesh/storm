@@ -3,7 +3,7 @@ docker-storm
 
 Multi-cloud load-balanced deployments.
 
-[![asciicast](https://asciinema.org/a/bzfi2vkwx5cjrnarycc0kubby.png)](https://asciinema.org/a/bzfi2vkwx5cjrnarycc0kubby)
+[![asciicast](https://asciinema.org/a/4rn6431m27q8l8vkr1dbox80x.png)](https://asciinema.org/a/4rn6431m27q8l8vkr1dbox80x)
 
 ### Installation
 
@@ -184,7 +184,7 @@ eval $(docker-storm env 0)
 ```
 With swarm flag:
 ```
-eval $(docker-storm env swarm 0)
+eval $(docker-storm env swarm)
 ```
 For discovery instances:
 ```
