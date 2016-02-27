@@ -1,0 +1,48 @@
+global
+  log 127.0.0.1 local0
+  log 127.0.0.1 local1 notice
+  tune.ssl.default-dh-param 2048
+  user haproxy
+  group haproxy
+  daemon
+
+defaults
+  log global
+  mode http
+  option httplog
+  option forwardfor
+  option dontlognull
+  option http-server-close
+  balance leastconn
+  timeout connect 5s
+  timeout client 1m
+  timeout server 1m
+
+listen stats
+  bind *:88 ssl crt /etc/ssl/private/certificate.pem
+  option httpclose
+  option forwardfor
+  stats enable
+  stats uri /stats
+  stats auth stats:stats
+  stats realm HAProxy\ Statistics
+
+frontend app
+  bind *:80
+  redirect scheme https code 301 if !{ ssl_fc }
+
+frontend app-ssl
+  bind *:443 ssl crt /etc/ssl/private/certificate.pem
+  default_backend app-backend
+
+frontend eth
+  bind *:8545 ssl crt /etc/ssl/private/certificate.pem
+  default_backend eth-backend
+
+backend app-backend
+  option tcp-check{{range $tag, $services := service "app" | byTag}}{{range $services}}
+  server {{.ID}} {{.Address}}:{{.Port}} check{{end}}{{end}}
+
+backend eth-backend
+  option tcp-check{{range $tag, $services := service "eth-8545" | byTag}}{{range $services}}
+  server {{.ID}} {{.Address}}:{{.Port}} check{{end}}{{end}}

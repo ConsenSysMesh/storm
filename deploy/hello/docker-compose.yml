@@ -1,0 +1,18 @@
+version: '2'
+
+services:
+  app:
+    image: tutum/hello-world
+    labels:
+      - com.storm.type=app
+    environment:
+      - affinity:com.storm.type!=app
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: development
+    networks:
+      - registrator_storm
+
+networks:
+  registrator_storm:
+    external: true

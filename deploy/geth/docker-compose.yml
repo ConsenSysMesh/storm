@@ -1,0 +1,19 @@
+version: '2'
+
+services:
+  geth:
+    image: ethereum/client-go:alpine
+    command: "--fast --rpc --rpcaddr '0.0.0.0' --testnet"
+    labels:
+      - com.storm.type=eth
+    environment:
+      - affinity:com.storm.type!=eth
+    environment:
+      SERVICE_NAME: eth
+      SERVICE_TAGS: testnet
+    networks:
+      - registrator_storm
+
+networks:
+  registrator_storm:
+    external: true

@@ -1,0 +1,2 @@
+include versioneer.py
+include storm/_version.py

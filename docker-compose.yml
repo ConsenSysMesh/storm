@@ -1,0 +1,9 @@
+version: '2'
+
+services:
+  storm:
+    build: .
+    tty: true
+    stdin_open: true
+    volumes:
+      - "~/.storm:/root/.storm"

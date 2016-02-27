@@ -1,0 +1,18 @@
+version: '2'
+
+services:
+  registrator:
+    image: caktux/registrator:latest
+    command: -network="registrator_storm" -internal consul://${DISCOVERY_IP}:8500 # -ip=${REGISTRATOR_PORT_8500_TCP_ADDR} # -ip=${DISCOVERY_IP}
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock
+    labels:
+      - com.storm.type=registrator
+    environment:
+      - affinity:com.storm.type!=registrator
+    networks:
+      - storm
+
+networks:
+  storm:
+    driver: overlay

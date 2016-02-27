@@ -1,0 +1,12 @@
+system-testing.pem
+venv/
+*.pyc
+*.sw?
+*.bak
+*.png
+*~
+amis.json
+es.json
+*.key
+*.crt
+htpasswd

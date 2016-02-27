@@ -1,0 +1,27 @@
+version: '2'
+
+services:
+  load-balancer:
+    image: caktux/haproxy:latest
+    ports:
+      - 80:80
+      - 88:88
+      - 443:443
+      - 8545:8545
+    labels:
+      - com.storm.type=load-balancer
+    environment:
+      - affinity:com.storm.type!=load-balancer
+    environment:
+      CONSUL_PORT_8500_TCP_ADDR: ${DISCOVERY_IP}
+      CONSUL_PORT_8500_TCP_PORT: "8500"
+      SERVICE_NAME: load-balancer
+      SERVICE_TAGS: production
+    volumes:
+      - "/home/ubuntu/.storm/certificate.pem:/etc/ssl/private/certificate.pem"
+    networks:
+      - registrator_storm
+
+networks:
+  registrator_storm:
+    external: true

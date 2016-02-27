@@ -1,0 +1,8 @@
+boto
+azure
+pyyaml
+fabric
+futures
+argparse
+colorlog
+progressbar2
