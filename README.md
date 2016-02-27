@@ -110,16 +110,16 @@ optional arguments:
 
 - Create a `storm.yml` file
 - Create a `deploy` folder, with your services in sub-folders along with their `docker-compose.yml` file:
-    ```
-    ./
-    storm.yml
-    deploy/
-        hello/
-            docker-compose.yml
-        redis/
-            docker-compose.yml
-        ...
-    ```
+
+        ./
+        storm.yml
+        deploy/
+            hello/
+                docker-compose.yml
+            redis/
+                docker-compose.yml
+            ...
+
 - Run `docker-storm deploy`
 
 Example `storm.yml`:
@@ -148,22 +148,23 @@ hosts:
     size: t2.small
     vpc: vpc-c2cb97a7
   digitalocean:
-    scale: 1
+    scale: 3
     size: 1gb
 
 deploy:
   hello:
     services:
       hello:
-        scale: 3
+        scale: 5
   geth:
     services:
       geth:
-        scale: 3
+        scale: 5
 ```
 
 #### Repairing cluster
 **Not implemented yet**
+
 This command will compare currently running instances with your `storm.yml` definitions, launch missing instances and containers, and repair the state of your cluster.
 ```
 docker-storm repair
