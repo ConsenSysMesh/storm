@@ -7,3 +7,4 @@ services:
     stdin_open: true
     volumes:
       - "~/.storm:/root/.storm"
+      # - "~/.docker/machine:/root/.docker/machine"  # Uncomment to use existing Docker machines

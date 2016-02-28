@@ -41,46 +41,6 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('boto').setLevel(logging.CRITICAL)
 
-def local(cmd, capture=False, threadName=None, cwd=None, env=None):
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd, env=env)
-    stdout = []
-    previous = None
-    if threadName:
-        color = colors.LIST[random.randint(0, len(colors.LIST) - 1)]
-        threadName = "%s%s%s" % (color, threadName, colors.ENDC)
-    while True:
-        line = p.stdout.readline()
-        if line != '' and line != "\n":
-            previous = line[:-1]
-        if capture and line:
-            stdout.append(line)
-        rc = p.poll()
-        if threadName:
-            if (rc is None or rc == 0) and "Error" not in line:
-                debug.info("[%s] %s" % (threadName, line[:-1]))
-            else:
-                if "Error" in line:
-                    log.error("%sERROR%s [%s]: %s" % (colors.RED, colors.ENDC, threadName, line[:-1]))
-                    debug.error(line[:-1])
-                else:
-                    log.error("%sERROR%s [%s]: %s" % (colors.RED, colors.ENDC, threadName, previous))
-                    debug.error(previous)
-        else:
-            if (rc is None or rc == 0) and "Error" not in line:
-                debug.info(line[:-1])
-            else:
-                if "Error" in line:
-                    log.error("%sERROR%s: %s" % (colors.RED, colors.ENDC, line[:-1]))
-                    debug.error(line[:-1])
-                else:
-                    log.error("%sERROR%s: %s" % (colors.RED, colors.ENDC, previous))
-                    debug.error(previous)
-        if line == '' and rc is not None:
-            if rc != 0:
-                raise subprocess.CalledProcessError(rc, cmd, previous)
-            break
-    return "".join(stdout)
-
 # Get AWS credentials
 try:
     path = os.path.join(os.path.expanduser("~"), ".storm", "aws")
@@ -159,6 +119,8 @@ def machine_env(instance, swarm=False):
     log.debug("Getting environment for %s" % instance)
     env_export = machine("env --shell bash %s%s" % ("--swarm " if swarm else "", instance), capture=True, threadName="env %s" % instance)
     log.debug("Environment: %s" % env_export)
+    if not env_export:
+        raise ValueError("Could not retrieve machine environment for %s" % instance)
     exports = env_export.splitlines()
     for export in exports:
         export = export[7:]  # remove "export "...
@@ -178,6 +140,46 @@ def machine_env(instance, swarm=False):
     env['DOCKER_CERT_PATH'] = cert_path
     env['DOCKER_HOST'] = host
     return env
+
+def local(cmd, capture=False, threadName=None, cwd=None, env=None):
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd, env=env)
+    stdout = []
+    previous = None
+    if threadName:
+        color = colors.LIST[random.randint(0, len(colors.LIST) - 1)]
+        threadName = "%s%s%s" % (color, threadName, colors.ENDC)
+    while True:
+        line = p.stdout.readline()
+        if line != '' and line != "\n":
+            previous = line[:-1]
+        if capture and line:
+            stdout.append(line)
+        rc = p.poll()
+        if threadName:
+            if (rc is None or rc == 0) and "Error" not in line:
+                debug.debug("[%s] %s" % (threadName, line[:-1]))
+            else:
+                if "Error" in line:
+                    log.error("%sERROR%s [%s]: %s" % (colors.RED, colors.ENDC, threadName, line[:-1]))
+                    debug.error(line[:-1])
+                else:
+                    log.error("%sERROR%s [%s]: %s" % (colors.RED, colors.ENDC, threadName, previous))
+                    debug.error(previous)
+        else:
+            if (rc is None or rc == 0) and "Error" not in line:
+                debug.debug(line[:-1])
+            else:
+                if "Error" in line:
+                    log.error("%sERROR%s: %s" % (colors.RED, colors.ENDC, line[:-1]))
+                    debug.error(line[:-1])
+                else:
+                    log.error("%sERROR%s: %s" % (colors.RED, colors.ENDC, previous))
+                    debug.error(previous)
+        if line == '' and rc is not None:
+            if rc != 0:
+                raise subprocess.CalledProcessError(rc, cmd, previous)
+            break
+    return "".join(stdout)
 
 def docker(cmd, threadName=None, capture=False, cwd=None, env=None):
     """
@@ -233,14 +235,14 @@ def build(folder, tag, cwd=None, env=None):
 
 def run(name, image, options, command, env=None):
     docker("run --name %s %s %s %s" % (name, options, image, command), threadName="run %s" % name, capture=False, env=env)
-    debug.debug("Started: %s" % name)
+    debug.info("Started: %s" % name)
 
 def stop(name, rm=True, env=None):
     docker("stop --time=30 %s" % name, threadName="stop" % name, capture=False, env=env)
-    debug.debug("Stopped: %s" % name)
+    debug.info("Stopped: %s" % name)
     if rm:
         docker("rm %s" % name, capture=False, env=env)
-        debug.debug("Removed: %s" % name)
+        debug.info("Removed: %s" % name)
 
 def exec_(container, command, env=None):
     docker("exec -it %s %s", container, command, env=env)
@@ -255,7 +257,7 @@ def run_on(instance, image, options="", command="", name=None, progress=None):
         abort("Error getting machine environment")
 
     docker("run --name %s %s %s %s" % (name, options, image, command), threadName="run %s" % name, env=env)
-    debug.debug("Started on %s: %s" % (instance, image))
+    debug.info("Started on %s: %s" % (instance, image))
 
     if progress:
         global completed
@@ -271,7 +273,7 @@ def stop_on(instance, rm=True, progress=None):
         abort("Error getting machine environment")
 
     docker("stop --time=30 %s" % instance, threadName="stop %s" % instance, env=env)
-    debug.debug("Stopped: %s" % instance)
+    debug.info("Stopped: %s" % instance)
 
     if progress:
         completed += 9
@@ -279,7 +281,7 @@ def stop_on(instance, rm=True, progress=None):
 
     if rm:
         docker("rm -f %s" % instance, threadName="rm %s" % instance, env=env)
-        debug.debug("Removed: %s" % instance)
+        debug.info("Removed: %s" % instance)
         if progress:
             completed += 9
             progress.update(completed)
@@ -321,7 +323,7 @@ def compose_on(instance, command, discovery=None, cwd=None):
         compose(command, threadName="compose %s" % instance, cwd=cwd, env=env)
     else:
         compose(command, threadName="compose %s" % instance, cwd=cwd, env=env)
-    debug.debug("Composed on %s: %s" % (instance, command))
+    debug.info("Composed on %s: %s" % (instance, command))
 
 def ssh_on(instance, command):
     machine("ssh %s -- %s" % (instance, command), threadName="ssh %s" % instance)
@@ -415,7 +417,7 @@ def create_aws(name, vpc=None, ami=None, region="us-east-1", zone="c", instance_
                "{swarm}"
                "{name}").format(**conf), threadName="create %s" % name)
 
-        debug.debug("Launched %s" % name)
+        debug.info("Launched %s" % name)
 
         if progress:
             completed += 7
@@ -500,7 +502,7 @@ def create_azure(name, size="Small", location="East US", image=None,
                "{swarm}"
                "{name}").format(**conf), threadName="create %s" % name)
 
-        debug.debug("Launched %s" % name)
+        debug.info("Launched %s" % name)
 
         if progress:
             completed += 7
@@ -610,7 +612,7 @@ def create_digitalocean(name, size="512mb", region="nyc3", image=None,
                "{swarm}"
                "{name}").format(**conf), threadName="create %s" % name)
 
-        debug.debug("Launched %s" % name)
+        debug.info("Launched %s" % name)
 
         # TODO Open overlay network ports?
 
@@ -676,7 +678,7 @@ def launch(instances):
     """
     Launch instances using create()
     """
-    debug.debug("Launching instances: %s" % instances)
+    debug.info("Launching instances: %s" % instances)
     max_workers = len(instances)
 
     global completed
@@ -699,7 +701,7 @@ def launch(instances):
         if future.exception() is not None:
             debug.error('%s generated an exception: %r' % (instance, future.exception()))
         if future.result() and "Exception" not in future.result():
-            debug.debug('Launched %s: %r' % (instance, future.result()))
+            debug.info('Launched %s: %r' % (instance, future.result()))
 
     ticker.cancel()
     progress.finish()
@@ -712,7 +714,7 @@ def deploy_consul(instances, encrypt, path=None):
 
     TODO SSL/TLS, custom image or path for compose file, ports/permissions for DigitalOcean?
     """
-    debug.debug("Launching Consul cluster on: %s" % instances)
+    debug.info("Launching Consul cluster on: %s" % instances)
     max_workers = len(instances)
 
     global completed
@@ -737,7 +739,7 @@ def deploy_consul(instances, encrypt, path=None):
         if future.exception() is not None:
             debug.error('%s generated an exception: %r' % (instance, future.exception()))
         if future.result() and "Exception" not in future.result():
-            debug.debug('Launched %s: %r' % (instance, future.result()))
+            debug.info('Launched %s: %r' % (instance, future.result()))
 
     ticker.cancel()
     progress.finish()
@@ -829,7 +831,7 @@ def deploy_registrator(swarm_master, scale, discovery, path=None):
 
     TODO custom path for compose files
     """
-    debug.debug("Launching %d Registrator containers from %s" % (scale, swarm_master))
+    debug.info("Launching %d Registrator containers from %s" % (scale, swarm_master))
 
     compose_on(swarm_master, "up -d", discovery, cwd=os.path.join(os.path.dirname(__file__), 'compose', 'registrator'))
     compose_on(swarm_master, "scale registrator=%d" % scale, discovery, cwd=os.path.join(os.path.dirname(__file__), 'compose', 'registrator'))
@@ -863,7 +865,7 @@ def prepare_haproxy(instances, path=None):
         if future.exception() is not None:
             debug.error('%s generated an exception: %r' % (instance, future.exception()))
         if future.result() and "Exception" not in future.result():
-            debug.debug('Prepared %s: %r' % (instance, future.result()))
+            debug.info('Prepared %s: %r' % (instance, future.result()))
 
     ticker.cancel()
     progress.finish()
@@ -925,7 +927,7 @@ def stop_machines(machines):
         if future.exception() is not None:
             debug.error("Exception stopping %s: %s" % (instance, future.exception()))
         if future.result() and "Exception" not in future.result():
-            debug.debug("Stopped: %s" % future.result())
+            debug.info("Stopped: %s" % future.result())
 
     ticker.cancel()
     progress.finish()
@@ -972,7 +974,7 @@ def teardown(instances):
         if future.exception() is not None:
             debug.error('%s generated an exception: %r' % (instance, future.exception()))
         if future.result():
-            debug.debug("Teardown: %s" % future.result())
+            debug.info("Teardown: %s" % future.result())
 
     progress.finish()
     log.info("Teardown duration: %ss" % (time.time() - start))

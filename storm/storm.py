@@ -75,7 +75,7 @@ class Inventory(object):
         return parsed
 
 def load_yaml():
-    log.debug("\nLoading storm.yml ...")
+    log.debug("Loading storm.yml ...")
     f = open("storm.yml")
     data = yaml.load(f)
     f.close()
@@ -87,10 +87,10 @@ def create_certs():
     # Create certs if they don't exist, otherwise we can end up creating
     # the same file in parallel in preparation steps
     if not os.path.exists(os.path.join(os.path.expanduser("~"), ".docker", "machine", "certs")):
-        logging.info("No certificates found, creating them...\n")
+        log.info("No certificates found, creating them...\n")
         machine("create -d none --url tcp://127.0.0.1:2376 dummy", threadName="create cert")
         machine("rm -y dummy", threadName="rm")
-        logging.info("Certificates created.\n")
+        log.info("Certificates created.\n")
 
 def main():
     parser = ArgumentParser(version=__version__)
@@ -208,7 +208,7 @@ def main():
         for provider in storm["discovery"]:
             discovery_total += storm["discovery"][provider]["scale"]
 
-        logging.debug("Total hosts: %d, discovery: %d" % (total, discovery_total))
+        log.debug("Total hosts: %d, discovery: %d" % (total, discovery_total))
 
         # Confirm setup parameters
         if not confirm("Setting up %s%s host%s%s on %s%d cloud provider%s%s, using "
@@ -253,8 +253,8 @@ def main():
                 instance["name"] = name
                 discovery[name] = instance
 
-        if not len(discovery) % 2:
-            log.warn("%sWARNING An even amount of instances could lead to election failure.%s" % (colors.YELLOW, colors.ENDC))
+        if len(discovery) == 1:
+            log.warn("%sWARNING%s: Using a single instance for service discovery provides no fault tolerance." % (colors.YELLOW, colors.ENDC))
 
         if discovery_total and not inventory.discovery:
             with settings(warn_only=False), rollback(discovery.keys()):
