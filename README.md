@@ -1,5 +1,6 @@
 docker-storm
 ============
+[![Build Status](https://travis-ci.org/ConsenSys/storm.svg?branch=master)](https://travis-ci.org/ConsenSys/storm) [![](https://badge.imagelayers.io/caktux/storm:alpine.svg)](https://imagelayers.io/?images=caktux/storm:latest,caktux/storm:alpine 'Get your own badge on imagelayers.io')
 
 Multi-cloud load-balanced deployments.
 
@@ -12,25 +13,36 @@ Multi-cloud load-balanced deployments.
 pip install docker-storm
 ```
 
-#### With `docker-compose`
+#### With Docker
+
+##### Using images from Docker Hub
+Alpine-based (~50 MB download / ~170 MB virtual size):
+```
+docker pull caktux/storm:alpine
+```
+
+Ubuntu-based (~155 MB download / ~400 MB virtual size):
+```
+docker pull caktux/storm
+```
+
+##### Building with `docker-compose`
 ```
 git clone https://github.com/ConsenSys/storm.git
 cd storm
 docker-compose build
 ```
 
-Pre-built images on Docker Hub will also be available.
-
 #### Bare-metal install
 ```
-sudo apt-get install pkg-config python python-dev
+sudo apt-get install build-essential pkg-config python python-dev
 git clone https://github.com/ConsenSys/storm.git
 cd storm
 virtualenv venv  # optional
 source venv/bin/activate  # optional
-pip install -e .
+pip install .
 ```
-You will also need [docker-machine](https://docs.docker.com/machine/), [docker-compose](https://docs.docker.com/compose/install/) and [docker](https://docs.docker.com/installation/ubuntulinux/).
+You will also need the latest releases of [docker-machine](https://docs.docker.com/machine/), [docker-compose](https://docs.docker.com/compose/install/) and [docker](https://docs.docker.com/installation/ubuntulinux/).
 
 ### Configuration
 #### Credentials
