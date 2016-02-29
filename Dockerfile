@@ -33,6 +33,14 @@ RUN curl -fSL "https://bootstrap.pypa.io/get-pip.py" | python
 ADD requirements.txt /
 RUN pip install -r requirements.txt
 
+# Install bash-completion, activate argcomplete and add bash-completion.d
+RUN apt-get install -q -y bash-completion
+RUN activate-global-python-argcomplete
+RUN echo ". /usr/share/bash-completion/bash_completion" >> ~/.bashrc
+
+# Install vim for in-container edits
+RUN apt-get install -q -y vim
+
 # Install storm
 ADD . storm
 WORKDIR storm

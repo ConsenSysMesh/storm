@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# PYTHON_ARGCOMPLETE_OK
 """
 Storm - multi-cloud load-balanced deployments
 
@@ -13,6 +14,7 @@ import base64
 import uuid
 import yaml
 import logging
+import argcomplete
 from colors import colors
 from fabric.api import settings
 from fabric.contrib.console import confirm
@@ -38,12 +40,13 @@ def parse_arguments(parser):
     parser.add_argument(
         "command",
         choices=["launch", "deploy", "repair", "env", "ls", "ps", "up", "scale", "stop", "rm", "teardown"],
-        nargs='?',
         help="Storm commands for deployments and maintenance")
     parser.add_argument(
         "parameters",
         nargs='*',
         help="Optional parameters per command")
+
+    argcomplete.autocomplete(parser)
 
     return parser.parse_args()
 
@@ -204,9 +207,17 @@ def main():
         total = 0
         discovery_total = 0
         for provider in storm["hosts"]:
-            total += storm["hosts"][provider]["scale"]
+            if isinstance(storm["hosts"][provider], list):
+                for i, location in enumerate(storm["hosts"][provider]):
+                    total += location["scale"]
+            else:
+                total += storm["hosts"][provider]["scale"]
         for provider in storm["discovery"]:
-            discovery_total += storm["discovery"][provider]["scale"]
+            if isinstance(storm["discovery"][provider], list):
+                for i, location in enumerate(storm["discovery"][provider]):
+                    discovery_total += location["scale"]
+            else:
+                discovery_total += storm["discovery"][provider]["scale"]
 
         log.debug("Total hosts: %d, discovery: %d" % (total, discovery_total))
 
@@ -246,12 +257,21 @@ def main():
 
         # Launch service discovery instances
         for provider in storm["discovery"]:
-            for index in range(storm["discovery"][provider]["scale"]):
-                name = "consul-%s-%d-%s" % (provider, index, str(uuid.uuid4())[:8])
-                instance = storm["discovery"][provider].copy()
-                instance["provider"] = provider
-                instance["name"] = name
-                discovery[name] = instance
+            if isinstance(storm["discovery"][provider], list):
+                for l, location in enumerate(storm["discovery"][provider]):
+                    for index in range(location["scale"]):
+                        name = "consul-%s-%d-%d-%s" % (provider, l, index, str(uuid.uuid4())[:8])
+                        instance = location.copy()
+                        instance["provider"] = provider
+                        instance["name"] = name
+                        discovery[name] = instance
+            else:
+                for index in range(storm["discovery"][provider]["scale"]):
+                    name = "consul-%s-%d-%s" % (provider, index, str(uuid.uuid4())[:8])
+                    instance = storm["discovery"][provider].copy()
+                    instance["provider"] = provider
+                    instance["name"] = name
+                    discovery[name] = instance
 
         if len(discovery) == 1:
             log.warn("%sWARNING%s: Using a single instance for service discovery provides no fault tolerance." % (colors.YELLOW, colors.ENDC))
@@ -270,7 +290,7 @@ def main():
         for name in inventory.discovery:
             names.append(name)
 
-        # FIXME Setting the discovery as first IP of Consul cluster until DNS setup is immplemented
+        # FIXME Setting discovery as first IP of Consul cluster until DNS setup is implemented
         discovery_host = inventory.discovery[inventory.discovery.keys()[0]]
 
         #
@@ -279,13 +299,23 @@ def main():
         log.info("Launching %scluster%s instances..." % (colors.BLUE, colors.ENDC))
 
         for provider in storm["hosts"]:
-            for index in range(storm["hosts"][provider]["scale"]):
-                name = "storm-%s-%d-%s" % (provider, index, str(uuid.uuid4())[:8])
-                instance = storm["hosts"][provider].copy()
-                instance["discovery"] = discovery_host
-                instance["provider"] = provider
-                instance["name"] = name
-                instances[name] = instance
+            if isinstance(storm["hosts"][provider], list):
+                for l, location in enumerate(storm["hosts"][provider]):
+                    for index in range(location["scale"]):
+                        name = "storm-%s-%d-%d-%s" % (provider, l, index, str(uuid.uuid4())[:8])
+                        instance = location.copy()
+                        instance["discovery"] = discovery_host
+                        instance["provider"] = provider
+                        instance["name"] = name
+                        instances[name] = instance
+            else:
+                for index in range(storm["hosts"][provider]["scale"]):
+                    name = "storm-%s-%d-%s" % (provider, index, str(uuid.uuid4())[:8])
+                    instance = storm["hosts"][provider].copy()
+                    instance["discovery"] = discovery_host
+                    instance["provider"] = provider
+                    instance["name"] = name
+                    instances[name] = instance
 
         if total and not inventory.instances:
             launch(instances)
@@ -381,7 +411,7 @@ def main():
             inventory = Inventory()
             discovery_host = inventory.discovery[inventory.discovery.keys()[0]]  # FIXME
             master_instance = inventory.instances.keys()[0]  # FIXME too
-            compose_on(master_instance, args.command + " " + " ".join(args.parameters), discovery_host)
+            compose_on(master_instance, args.command + " " + " ".join(args.parameters), discovery_host, verbose=True)
         else:
             log.warn("No docker-compose arguments found to process.")
 

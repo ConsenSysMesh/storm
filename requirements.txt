@@ -3,6 +3,7 @@ azure
 pyyaml
 fabric
 futures
-argparse
 colorlog
+argparse
+argcomplete
 progressbar2

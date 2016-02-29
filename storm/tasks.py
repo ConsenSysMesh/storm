@@ -23,23 +23,28 @@ from azure.common import AzureHttpError
 
 log = logging.getLogger(__name__)
 
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('boto').setLevel(logging.CRITICAL)
+
+# Debug formatter
 formatter = colorlog.ColoredFormatter(
     '%(log_color)s%(levelname)-8s%(reset)s [%(asctime)s] [%(blue)s%(name)s.%(funcName)s%(reset)s:%(bold)s%(lineno)d%(reset)s] %(message)s',
     datefmt="%H:%M:%S",
     reset=True,
     log_colors=colorlog.default_log_colors)
 
+# Debug logger
 debug = logging.getLogger('debug')
 debug.setLevel(logging.DEBUG)
 debug.propagate = False
-debuglog = logging.FileHandler('debug.log')
+debug_logfile = os.path.join(os.path.expanduser("~"), ".storm", 'debug.log')
+debuglog = logging.handlers.RotatingFileHandler(debug_logfile, backupCount=5, delay=True)
+if os.path.exists(debug_logfile):
+    debuglog.doRollover()
 debuglog.setLevel(logging.DEBUG)
 debuglog.setFormatter(formatter)
 debug.addHandler(debuglog)
-
-logging.getLogger("requests").setLevel(logging.WARNING)
-logging.getLogger('urllib3').setLevel(logging.WARNING)
-logging.getLogger('boto').setLevel(logging.CRITICAL)
 
 # Get AWS credentials
 try:
@@ -141,7 +146,7 @@ def machine_env(instance, swarm=False):
     env['DOCKER_HOST'] = host
     return env
 
-def local(cmd, capture=False, threadName=None, cwd=None, env=None):
+def local(cmd, capture=False, threadName=None, cwd=None, env=None, verbose=False):
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd, env=env)
     stdout = []
     previous = None
@@ -158,6 +163,8 @@ def local(cmd, capture=False, threadName=None, cwd=None, env=None):
         if threadName:
             if (rc is None or rc == 0) and "Error" not in line:
                 debug.debug("[%s] %s" % (threadName, line[:-1]))
+                if verbose:
+                    log.info("[%s] %s" % (threadName, line[:-1]))
             else:
                 if "Error" in line:
                     log.error("%sERROR%s [%s]: %s" % (colors.RED, colors.ENDC, threadName, line[:-1]))
@@ -168,6 +175,8 @@ def local(cmd, capture=False, threadName=None, cwd=None, env=None):
         else:
             if (rc is None or rc == 0) and "Error" not in line:
                 debug.debug(line[:-1])
+                if verbose:
+                    log.info(line[:-1])
             else:
                 if "Error" in line:
                     log.error("%sERROR%s: %s" % (colors.RED, colors.ENDC, line[:-1]))
@@ -205,12 +214,12 @@ def machine(cmd, threadName=None, capture=False, progress=None):
     except subprocess.CalledProcessError as e:
         debug.error("Exception running docker-machine: %s" % e)
 
-def compose(cmd, threadName=None, progress=None, cwd=None, env=None):
+def compose(cmd, threadName=None, progress=None, cwd=None, env=None, verbose=False):
     """
     Run Compose command
     """
     try:
-        local("docker-compose %s" % cmd, threadName=threadName, cwd=cwd, env=env)
+        local("docker-compose %s" % cmd, threadName=threadName, cwd=cwd, env=env, verbose=verbose)
         if progress:
             global completed
             completed += 1
@@ -314,16 +323,17 @@ def build_on(instance, folder, tag, cwd=None):
         abort("Error getting machine environment")
     build(folder, tag, cwd=cwd, env=env)
 
-def compose_on(instance, command, discovery=None, cwd=None):
+def compose_on(instance, command, discovery=None, cwd=None, verbose=False):
     env = machine_env(instance, swarm=True if discovery else False)
     if not env:
         abort("Error getting machine environment")
     if discovery:
         env["DISCOVERY_IP"] = discovery
-        compose(command, threadName="compose %s" % instance, cwd=cwd, env=env)
+        compose(command, threadName="compose %s" % instance, cwd=cwd, env=env, verbose=verbose)
     else:
-        compose(command, threadName="compose %s" % instance, cwd=cwd, env=env)
+        compose(command, threadName="compose %s" % instance, cwd=cwd, env=env, verbose=verbose)
     debug.info("Composed on %s: %s" % (instance, command))
+    log.info("Composed on %s: %s" % (instance, command))
 
 def ssh_on(instance, command):
     machine("ssh %s -- %s" % (instance, command), threadName="ssh %s" % instance)
@@ -335,7 +345,7 @@ def create(instance, capture=True, progress=None):
     global completed
 
     # Delay instantiations slightly
-    index = int(instance["name"].split("-")[2])
+    index = int(instance["name"].split("-")[-2])
     time.sleep(index)
 
     if instance["provider"] == "aws":

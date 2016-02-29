@@ -16,15 +16,20 @@ discovery:
 
 hosts:
   azure:
-    scale: 1
-    size: Small
-    location: West Europe
+    -
+      scale: 1
+      size: Small
+      location: West Europe
+    -
+      scale: 1
+      size: Small
+      location: East US
   aws:
     scale: 1
     size: t2.nano
     vpc: vpc-c2cb97a7
   digitalocean:
-    scale: 4
+    scale: 3
     size: 512mb
 
 deploy:

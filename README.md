@@ -141,8 +141,14 @@ discovery:
 
 hosts:
   azure:
-    scale: 3
-    size: Small
+    -
+      scale: 1
+      size: Small
+      location: West Europe
+    -
+      scale: 1
+      size: Small
+      location: East US
   aws:
     scale: 3
     size: t2.small
@@ -154,7 +160,7 @@ hosts:
 deploy:
   hello:
     services:
-      hello:
+      app:
         scale: 5
   geth:
     services:
