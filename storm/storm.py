@@ -50,7 +50,6 @@ def parse_arguments(parser):
 
     return parser.parse_args()
 
-
 class Inventory(object):
     def __init__(self):
         machines = self.parse_machines()
@@ -107,9 +106,9 @@ def main():
             "/___/\__/\___/_/ /_/_/_/\n" % (colors.BLUE, __version__, colors.GREEN))
 
     if args.command != "env":
-        log.info('%s=========%s' % (colors.HEADER, colors.ENDC))
+        log.info('%s=========%s' % (colors.PURPLE, colors.ENDC))
         log.info('%s%s%s' % (colors.GREEN, logo, colors.ENDC))
-        log.info('%s========================%s\n' % (colors.HEADER, colors.ENDC))
+        log.info('%s========================%s\n' % (colors.PURPLE, colors.ENDC))
 
     if args.command == "ls":
         # List machines
@@ -203,47 +202,60 @@ def main():
         # Load YAML definitions
         storm = load_yaml()
 
-        # Total nodes
-        total = 0
-        discovery_total = 0
-        for provider in storm["hosts"]:
-            if isinstance(storm["hosts"][provider], list):
-                for i, location in enumerate(storm["hosts"][provider]):
-                    total += location["scale"]
-            else:
-                total += storm["hosts"][provider]["scale"]
-        for provider in storm["discovery"]:
-            if isinstance(storm["discovery"][provider], list):
-                for i, location in enumerate(storm["discovery"][provider]):
-                    discovery_total += location["scale"]
-            else:
-                discovery_total += storm["discovery"][provider]["scale"]
+        # Summary and totals
+        summary = {
+            "hosts": {
+                "title": "Instances",
+                "total": 0,
+                "summary": ""
+            },
+            "discovery": {
+                "title": "Discovery instances",
+                "total": 0,
+                "summary": ""
+            }
+        }
+        for section in summary:
+            for provider in storm[section]:
+                options = storm[section][provider]
+                provider_details = []
+                provider_scale = 0
+                if isinstance(options, list):
+                    for location in options:
+                        provider_scale += location["scale"]
+                        summary[section]["total"] += location["scale"]
+                        if "size" in location and "location" in location:
+                            provider_details.append("%s in %s" % (location["size"], location["location"]))
+                        elif "size" in location:
+                            provider_details.append("%s" % location["size"])
+                        elif "location" in location:
+                            provider_details.append("%s" % location["location"])
+                        else:
+                            provider_details.append("default")
+                else:
+                    provider_scale += options["scale"]
+                    summary[section]["total"] += options["scale"]
+                    if "size" in options and "location" in options:
+                        provider_details.append("%s in %s" % (options["size"], options["location"]))
+                    elif "size" in options:
+                        provider_details.append('%s' % options["size"])
+                    elif "location" in options:
+                        provider_details.append("%s" % options["location"])
+                    else:
+                        provider_details.append("default")
+                summary[section]["summary"] += "  %s: %s (%s)\n" % (provider, provider_scale, ", ".join(provider_details))
+            log.info("%s:\n%s" % (summary[section]["title"], summary[section]["summary"]))
 
-        log.debug("Total hosts: %d, discovery: %d" % (total, discovery_total))
+        log.info("Totals: %s%d instances%s on %s%d cloud providers%s" % (
+                 colors.GREEN, summary["hosts"]["total"], colors.ENDC, colors.BLUE, len(storm["hosts"]), colors.ENDC))
+        log.info("      + %s%d discovery instances%s on %s%d cloud providers%s\n" % (
+                 colors.PURPLE, summary["discovery"]["total"], colors.ENDC, colors.BLUE, len(storm["discovery"]), colors.ENDC))
 
         # Confirm setup parameters
-        if not confirm("Setting up %s%s host%s%s on %s%d cloud provider%s%s, using "
-                       "%s%d instance%s%s on %s%d cloud provider%s%s for "
-                       "discovery services. Continue?" % (colors.GREEN,
-                                                          total,
-                                                          "s" if total > 1 else "",
-                                                          colors.ENDC,
-                                                          colors.BLUE,
-                                                          len(storm["hosts"]),
-                                                          "s" if len(storm["hosts"]) > 1 else "",
-                                                          colors.ENDC,
-                                                          colors.HEADER,
-                                                          discovery_total,
-                                                          "s" if discovery_total > 1 else "",
-                                                          colors.ENDC,
-                                                          colors.BLUE,
-                                                          len(storm["discovery"]),
-                                                          "s" if len(storm["discovery"]) > 1 else "",
-                                                          colors.ENDC)):
+        if not confirm("Continue?"):
             log.warn("Aborting...")
             raise SystemExit
 
-        # TODO Compare inventory to see how many nodes need to be launched
         names = []
         instances = {}
         discovery = {}
@@ -253,7 +265,7 @@ def main():
         #
         # Launch discovery instances
         #
-        log.info("Launching %sdiscovery%s instances..." % (colors.HEADER, colors.ENDC))
+        log.info("Launching %sdiscovery%s instances..." % (colors.PURPLE, colors.ENDC))
 
         # Launch service discovery instances
         for provider in storm["discovery"]:
@@ -276,13 +288,13 @@ def main():
         if len(discovery) == 1:
             log.warn("%sWARNING%s: Using a single instance for service discovery provides no fault tolerance." % (colors.YELLOW, colors.ENDC))
 
-        if discovery_total and not inventory.discovery:
+        if summary["discovery"]["total"] and not inventory.discovery:
             with settings(warn_only=False), rollback(discovery.keys()):
                 launch(discovery)
 
             # Deploy Consul on discovery instances
             inventory = Inventory()
-            log.info("Deploying %sConsul%s%s..." % (colors.HEADER, colors.ENDC, " cluster" if len(inventory.discovery) > 1 else ""))
+            log.info("Deploying %sConsul%s%s..." % (colors.PURPLE, colors.ENDC, " cluster" if len(inventory.discovery) > 1 else ""))
             encrypt = base64.b64encode(str(uuid.uuid4()).replace('-', '')[:16])
             deploy_consul(inventory.discovery, encrypt)
 
@@ -317,28 +329,32 @@ def main():
                     instance["name"] = name
                     instances[name] = instance
 
-        if total and not inventory.instances:
+        if summary["hosts"]["total"] and not inventory.instances:
             launch(instances)
 
             # Reload inventory
             inventory = Inventory()
 
+        log.info("Launched %s%d instances%s, %s%d discovery instances%s" % (
+                 colors.GREEN, len(inventory.instances), colors.ENDC,
+                 colors.PURPLE, len(inventory.discovery), colors.ENDC))
+
         # Need a better way to get the swarm master...
         swarm_master = inventory.instances.keys()[0]
 
         # Deploy and scale registrator to all instances
-        log.info("Deploying %sregistrator%s on %d instances..." % (colors.GREEN, colors.ENDC, len(inventory.instances)))
+        log.info("Deploying %sregistrator%s..." % (colors.GREEN, colors.ENDC))
         deploy_registrator(
             swarm_master,
             len(inventory.instances),
             discovery_host)
 
         # Prepare instances for HAProxy (transfer certificate for HTTPS)
-        log.info("Preparing %sHAProxy%s on all instances..." % (colors.GREEN, colors.ENDC))
+        log.info("Preparing %sHAProxy%s..." % (colors.GREEN, colors.ENDC))
         prepare_haproxy(inventory.instances.keys())
 
         # Deploy HAProxy
-        log.info("Deploying %sHAProxy%s on %d instances..." % (colors.GREEN, colors.ENDC, storm["load_balancers"]))
+        log.info("Deploying %s%d HAProxy%s instances..." % (colors.GREEN, storm["load_balancers"], colors.ENDC))
         deploy_haproxy(
             swarm_master,
             storm["load_balancers"],
@@ -347,10 +363,6 @@ def main():
         # Add cluster instances names to list
         for name in inventory.instances:
             names.append(name)
-
-        log.info("Discovery: %s" % inventory.discovery)
-        log.info("Instances: %s" % inventory.instances)
-        log.info("Names: %s" % names)
 
         # List inventory
         if args.debug:
@@ -362,6 +374,7 @@ def main():
 
             log.debug('Discovery: %s' % inventory.discovery)
             log.debug('Instances: %s' % inventory.instances)
+            log.debug("Names: %s" % names)
 
         # Deploy services
         for name in storm["deploy"]:

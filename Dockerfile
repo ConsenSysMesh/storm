@@ -8,11 +8,8 @@ RUN apt-get update
 RUN apt-get upgrade -q -y
 RUN apt-get dist-upgrade -q -y
 
-# Install fetch and versioneer equirements
-RUN apt-get install -q -y curl git
-
-# Install requirements
-RUN apt-get install -q -y pkg-config python python-dev
+# Install python, curl, and git to display version with versioneer
+RUN apt-get install -q -y python curl git
 
 ENV DOCKER_ENGINE_VERSION latest
 ENV DOCKER_COMPOSE_VERSION 1.6.2
@@ -31,7 +28,15 @@ RUN curl -fSL "https://bootstrap.pypa.io/get-pip.py" | python
 
 # We add requirements.txt first to prevent unnecessary local rebuilds
 ADD requirements.txt /
-RUN pip install -r requirements.txt
+RUN deps="build-essential pkg-config python-dev" && \
+    apt-get install -q -y $deps && \
+    pip install --no-cache-dir -r requirements.txt && \
+    apt-get purge -y $deps gcc cpp libc6-dev libgcc-5-dev libstdc++-5-dev && \
+    apt-get --purge autoremove -y && \
+    rm -rf /var/cache/apt/archives/*
+
+# RUN apt-get purge build-essential pkg-config python-dev
+RUN apt-get purge -y gcc cpp libc6-dev && apt-get autoremove -y
 
 # Install bash-completion, activate argcomplete and add bash-completion.d
 RUN apt-get install -q -y bash-completion
@@ -39,14 +44,14 @@ RUN activate-global-python-argcomplete
 RUN echo ". /usr/share/bash-completion/bash_completion" >> ~/.bashrc
 
 # Install vim for in-container edits
-RUN apt-get install -q -y vim
+# RUN apt-get install -q -y vim
 
 # Install storm
 ADD . storm
 WORKDIR storm
 RUN pip install -e .
 
-# Mount ~/.docker/machine to use existing Docker machines
+# Mount ~/.docker/machine for persistence of Docker machines across container restarts
 VOLUME ["/root/.docker/machine"]
 
 # Mount your local ~/.storm for credentials and certificates

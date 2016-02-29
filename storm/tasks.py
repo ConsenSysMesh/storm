@@ -231,7 +231,7 @@ def machine_list():
     """
     List machines
     """
-    return machine("ls", threadName="ls", capture=True)
+    return machine("ls --filter label=com.storm.managed=true", threadName="ls", capture=True)
 
 def active(instance):
     machine("active %s" % instance, threadName="active")
@@ -414,6 +414,7 @@ def create_aws(name, vpc=None, ami=None, region="us-east-1", zone="c", instance_
             "name": name
         }
         local(("docker-machine create "
+               "--engine-label com.storm.managed=true "
                "--driver amazonec2 "
                "--amazonec2-access-key {access_key} "
                "--amazonec2-secret-key {secret_key} "
@@ -503,6 +504,7 @@ def create_azure(name, size="Small", location="East US", image=None,
             "name": name
         }
         local(("docker-machine create "
+               "--engine-label com.storm.managed=true "
                "--driver azure "
                "--azure-subscription-id {subscription_id} "
                "--azure-subscription-cert {certificate} "
@@ -614,6 +616,7 @@ def create_digitalocean(name, size="512mb", region="nyc3", image=None,
             "name": name
         }
         local(("docker-machine create "
+               "--engine-label com.storm.managed=true "
                "--driver digitalocean "
                "--digitalocean-access-token {access_token} "
                "--digitalocean-region {region} "

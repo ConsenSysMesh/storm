@@ -203,7 +203,7 @@ docker-storm ps [-- -a]
 ```
 
 #### `ls` shortcut
-This is really just an alias for `docker-machine ls`
+This is really just an alias for `docker-machine ls --filter label=com.storm.managed=true` which filters for machines managed by `docker-storm`.
 ```
 docker-storm ls
 ```
