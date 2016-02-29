@@ -1,6 +1,6 @@
 docker-storm
 ============
-[![Build Status](https://travis-ci.org/ConsenSys/storm.svg?branch=master)](https://travis-ci.org/ConsenSys/storm) [![](https://badge.imagelayers.io/caktux/storm:alpine.svg)](https://imagelayers.io/?images=caktux/storm:latest,caktux/storm:alpine 'Get your own badge on imagelayers.io')
+[![Build Status](https://travis-ci.org/ConsenSys/storm.svg?branch=master)](https://travis-ci.org/ConsenSys/storm) [![PyPI](https://img.shields.io/pypi/v/docker-storm.svg)](https://pypi.python.org/pypi/docker-storm) [![](https://badge.imagelayers.io/caktux/storm:alpine.svg)](https://imagelayers.io/?images=caktux/storm:latest,caktux/storm:alpine 'Get your own badge on imagelayers.io')
 
 Multi-cloud load-balanced deployments.
 
