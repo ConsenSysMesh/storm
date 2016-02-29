@@ -1,0 +1,15 @@
+language: python
+python: 2.7
+install:
+- pip install .
+script:
+- flake8
+deploy:
+  provider: pypi
+  user: caktux
+  password:
+    secure: Muh+GSGLw2BJxxFcvaA9YAF8o5AHAHG1Myp7Oo/KRC2QunyS2kGrvn2EO42vk4LOLM1itF1NIYa0Qqd4kNeRkISnmpXPfKEEtseCy1rTfLMsG49/Z9D8ZUFAmQtIgKEjxF/37CNWVCpbQNmyWTQa02e5wObBz1XiTuyqEJqgiKg9c+0tgQNsp299WJrmqXrzYdYMj1rzzOsqx7kU8VzehS0vJu3iRWFdvYB8Ckuk/jqTbk4ero+MhAlgvXStZ8nVCAebTdAKzYr01ni3/N4hr5R58a0WIbVeaKUgj6fkiUTwtl+cPRE+XRjnmp0rkK8bg/grfCAGg6FYN9DM/52SewTfEj1gMGzc5zH2+/RdgRa7qlc4DfDnE2Hv7NH0YqjZQcCIT7yNdNR1bdI+mLbc2ppdUIpkwUZ0EaSNwoMEPcSQwExNvSIJFt6y2/DU5TpgPQR859bVhkiqh/IcROc54wGo37sOjbvAWPywcFnDknHIpzGV6XwubPbt8Whr7hkeg4Xo6NuUUZ1iwt2WIN/3mXdJC93uwP8ftXyVIyUxyMeRxr7wOASHWU9rpsBQKC/e0K+xh8VB59aVogsJvuo5P2MIhvx83R2OV5QYKltJSXwaxYyN+Rt692lm/adKUK5vQLiYSJwHnWP44jjVt7ESXiLllZKdMYBRaUqELgFRkac=
+  on:
+    tags: true
+    distributions: sdist bdist_wheel
+    repo: ConsenSys/storm
