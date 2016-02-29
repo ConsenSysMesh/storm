@@ -2,7 +2,9 @@ version: '2'
 
 services:
   storm:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.alpine
     tty: true
     stdin_open: true
     volumes:
